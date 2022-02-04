@@ -89,7 +89,7 @@ export class AppService {
     const profit = changes.reduce((a, b) => (a + 1) * (b + 1) - 1, 0);
     return {
       data: {
-        balanceUSD,
+        balance: lastBalanceUSD,
         profit,
         dates: {
           last: dates[dates.length - 2],
