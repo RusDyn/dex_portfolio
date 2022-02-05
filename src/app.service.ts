@@ -1,13 +1,16 @@
 import { Injectable } from '@nestjs/common';
 import { BigNumber, ethers } from 'ethers';
 import { MoralisService } from './moralis/moralis.service';
-import { Balance, Transfer } from './types';
-import Moralis from 'moralis';
-import transfer = Moralis.transfer;
+import { Balance } from './types';
+import { logBalances, toDigits } from './util';
+import { PricesService } from './prices/prices.service';
 
 @Injectable()
 export class AppService {
-  constructor(private readonly moralis: MoralisService) {}
+  constructor(
+    private readonly moralis: MoralisService,
+    private readonly prices: PricesService,
+  ) {}
 
   getHello(): string {
     return 'Hello World!';
@@ -27,7 +30,7 @@ export class AppService {
     date: number,
     change: Balance,
   ): Promise<[Balance, number, number]> {
-    const newBalance = await this.moralis.getPrices(prevBalance, date);
+    const newBalance = await this.prices.getPrices(prevBalance, date);
     const newBalanceUSD = parseFloat(
       ethers.utils.formatUnits(newBalance, 'ether'),
     );
@@ -42,7 +45,7 @@ export class AppService {
       balance[key] = newValue.add(value);
     }
 
-    const newBalance2 = await this.moralis.getPrices(balance, date);
+    const newBalance2 = await this.prices.getPrices(balance, date);
     const newBalanceUSD2 = parseFloat(
       ethers.utils.formatUnits(newBalance2, 'ether'),
     );
@@ -70,14 +73,14 @@ export class AppService {
 
       balanceUSD = newBalanceUSD;
       balance = newBalance;
-      changes.push(newChange);
-      balances.push(balanceUSD);
+      changes.push(toDigits(newChange, 8));
+      balances.push(toDigits(balanceUSD, 4));
       dates.push(date);
     }
 
     const lastBalance = await this.moralis.getTokenBalances(address);
     const dateNow = Date.now();
-    const lastBalance2 = await this.moralis.getPrices(lastBalance, dateNow);
+    const lastBalance2 = await this.prices.getPrices(lastBalance, dateNow);
     const lastBalanceUSD = parseFloat(
       ethers.utils.formatUnits(lastBalance2, 'ether'),
     );
