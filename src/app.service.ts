@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { BigNumber, ethers } from 'ethers';
 import { MoralisService } from './moralis/moralis.service';
-import { Balance } from './types';
+import { Balance, History, HistoryData } from './types';
 import { logBalances, toDigits } from './util';
 import { PricesService } from './prices/prices.service';
 
@@ -53,9 +53,24 @@ export class AppService {
 
     return [balance, newBalanceUSD2, percentChange];
   }
-  async getHistory(address: string): Promise<any> {
+  async getHistory(address: string): Promise<History> {
     const transfers = await this.moralis.getTokenTransfers(address);
 
+    if (transfers.length == 0) {
+      return {
+        balances: [],
+        changes: [],
+        dates: [],
+        data: {
+          balance: 0,
+          dates: {
+            first: 0,
+            last: 0,
+          },
+          profit: 0,
+        },
+      };
+    }
     let balance: Balance = {};
     let balanceUSD = 0;
 
@@ -90,15 +105,16 @@ export class AppService {
     dates.push(dateNow);
 
     const profit = changes.reduce((a, b) => (a + 1) * (b + 1) - 1, 0);
-    return {
-      data: {
-        balance: lastBalanceUSD,
-        profit,
-        dates: {
-          last: dates[dates.length - 2],
-          first: dates[0],
-        },
+    const hdata: HistoryData = {
+      balance: lastBalanceUSD,
+      profit,
+      dates: {
+        last: dates[dates.length - 2],
+        first: dates[0],
       },
+    };
+    return {
+      data: hdata,
       changes,
       dates,
       balances,
