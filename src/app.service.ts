@@ -12,6 +12,9 @@ export class AppService {
     private readonly prices: PricesService,
   ) {}
 
+  count = 0;
+  lastAddresses: string[] = [];
+
   getHello(): string {
     return 'Hello World!';
   }
@@ -53,6 +56,22 @@ export class AppService {
 
     return [balance, newBalanceUSD2, percentChange];
   }
+
+  updateInfo(address: string) {
+    if (this.lastAddresses.length > 0) {
+      if (this.lastAddresses[this.lastAddresses.length - 1] != address) {
+        this.lastAddresses.push(address);
+        this.count++;
+        const maxLen = 10;
+        if (this.lastAddresses.length > maxLen) {
+          this.lastAddresses.splice(0, maxLen - this.lastAddresses.length);
+        }
+      }
+    } else {
+      this.lastAddresses.push(address);
+      this.count++;
+    }
+  }
   async getHistory(address: string): Promise<History> {
     const transfers = await this.moralis.getTokenTransfers(address);
 
@@ -71,6 +90,8 @@ export class AppService {
         },
       };
     }
+    this.updateInfo(address);
+
     let balance: Balance = {};
     let balanceUSD = 0;
 
@@ -119,5 +140,21 @@ export class AppService {
       dates,
       balances,
     };
+  }
+
+  getInfo() {
+    return { count: this.count };
+  }
+
+  getLastAddresses() {
+    return this.lastAddresses;
+  }
+
+  getRandomAddress(): any {
+    const items = this.prices.swapSenders;
+    const i = Math.floor(Math.random() * items.length);
+
+    const address = items[i];
+    return { address };
   }
 }

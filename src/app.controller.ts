@@ -14,4 +14,19 @@ export class AppController {
   getHistory(@Param('address') address: string): any {
     return this.appService.getHistory(address);
   }
+
+  @Get('info')
+  getInfo(): any {
+    return this.appService.getInfo();
+  }
+
+  @Get('lastAddresses')
+  getLastAddresses(): any {
+    return this.appService.getLastAddresses();
+  }
+
+  @Get('randomAddress')
+  getRandomAddress(): any {
+    return this.appService.getRandomAddress();
+  }
 }

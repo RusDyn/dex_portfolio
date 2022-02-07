@@ -26,6 +26,7 @@ interface Pool {
   token0: PoolToken;
   token1: PoolToken;
 }
+
 @Injectable()
 export class PricesService implements OnApplicationBootstrap {
   cache: {
@@ -39,10 +40,11 @@ export class PricesService implements OnApplicationBootstrap {
   pools: Pool[] = [];
   tokens: { [id: string]: TokenInfo } = {};
   prices: { [id: string]: { [time: string]: number } } = {};
+  swapSenders: string[] = [];
 
   async onApplicationBootstrap() {
     await this.loadUniswapTokens();
-
+    await this.loadSwaps();
     const keys = Object.keys(this.tokens);
 
     const promises = keys.map(async (key) => {
@@ -57,6 +59,37 @@ export class PricesService implements OnApplicationBootstrap {
 
   constructor() {}
 
+  async loadSwaps() {
+    const senders: Set<string> = new Set();
+    let skip = 0;
+    while (true) {
+      const query = gql`
+        {
+          swaps(first: 1000, skip: ${skip}, orderBy: amountUSD, orderDirection: desc) {
+            sender
+            recipient
+          }
+        }
+      `;
+      const { swaps } = await this.uniswapQuery(query);
+
+      skip += swaps.length;
+      swaps.forEach((item: any) => {
+        const { sender, recipient } = item;
+        if (!senders.has(sender)) {
+          senders.add(sender);
+        }
+
+        if (!senders.has(recipient)) {
+          senders.add(recipient);
+        }
+      });
+      if (senders.size > 1000 || skip > 5000) {
+        break;
+      }
+    }
+    this.swapSenders = Array.from(senders);
+  }
   async loadUniswapTokens() {
     const limit = 100; // 1000 loads to long
     const query = gql`
@@ -206,14 +239,24 @@ export class PricesService implements OnApplicationBootstrap {
     const time = date.getTime();
 
     const prices = this.prices[address];
+    if (Object.keys(prices).length == 0) {
+      return 0;
+    }
+
     const keys = Object.keys(prices).map((item) => parseInt(item));
     if (keys[0] > time) {
       return prices[keys[0]];
     }
 
-    const closest = keys.reduce(function (prev, curr) {
-      return Math.abs(curr - time) < Math.abs(prev - time) ? curr : prev;
-    });
+    let diff = -1;
+    let closest = keys[0];
+    for (const key of keys) {
+      const newDiff = Math.abs(time - key);
+      if (diff == -1 || newDiff < diff) {
+        diff = newDiff;
+        closest = key;
+      }
+    }
 
     return prices[closest];
   }
